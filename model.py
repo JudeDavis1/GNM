@@ -160,6 +160,7 @@ class GNMModel(nn.Module):
         ld = DataLoader(dataset, batch_size=batch_size, num_workers=0, pin_memory=True)
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(self.parameters(), lr=lr, betas=(0.99, 0.999))
+        loss = 999
 
         total_steps = len(dataset) // batch_size
 

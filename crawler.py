@@ -15,12 +15,10 @@ def test():
     crawler = Crawler()
     crawler.crawl(
         'https://en.wikipedia.org/wiki/Hello',
-        n_links_per_page=1,
-        max_depth=10
+        max_depth=300
     )
-    print(len(crawler.data))
 
-    with io.open('data/wiki.txt', 'w', encoding='utf-8') as f:
+    with io.open('data/wiki.txt', 'w+', encoding='utf-8') as f:
         f.writelines(crawler.data)
 
 class Crawler:
@@ -33,8 +31,9 @@ class Crawler:
 
     def crawl(
         self, page: Union[str, list],
-        n_links_per_page: int=2,
-        max_depth: int=5
+        n_links_per_page: int=100,
+        max_depth: int=5,
+        min_words: int=10
     ) -> None:
 
         '''
@@ -50,6 +49,8 @@ class Crawler:
             max_depth:
                 - An integer which is the maximum number of links that the web crawler has
                 to go to when crawling a page.
+            min_words:
+                - The minimum number of words each <p> tag should contain to save.
         Returns:
             A string with all the necessary text which goes to the corpus.
         '''
@@ -60,7 +61,6 @@ class Crawler:
             self.visited_pages.add(page)
             # Deque a page from the queue
             page = self.frontier.popleft() if self.frontier else page
-            print(self.frontier)
 
             try: src = requests.get(page).text
             except:
@@ -69,12 +69,16 @@ class Crawler:
 
             soup = bs4.BeautifulSoup(src, 'html.parser')
             for p in soup.find_all('p'):
-                text = p.get_text().replace('\n', '')
-                if not self._content_is_valid(text): continue
+                text = p.get_text().strip('\n') + '\n'
+                if len(text.split(' ')) < min_words \
+                    or not self._content_is_valid(text): continue
+
                 self.data.append(text)
 
             n_ = 0  # Number of links found
-            for link in self._get_links(soup):
+            for link in soup.find_all('a'):
+                link = link.get('href')
+
                 if not link or link in self.visited_pages: continue
                 if not self._url_is_valid(link):
                     logger.CRITICAL(f'Invalid URL: {page}')
@@ -91,11 +95,9 @@ class Crawler:
 
             i += 1
 
-    def _get_links(self, soup: bs4.BeautifulSoup) -> List[str]:
-        return [link.get('href') for link in soup.find_all('a')]
-
     def _content_is_valid(self, text) -> bool:
-        allowed = string.ascii_letters + string.digits + string.punctuation + ' '
+        # The text must only contain text, numbers and symbols (english)
+        allowed = string.ascii_letters + string.digits + string.punctuation + ' ' + '\n'
         metadata = [1 if char in allowed else 0 for char in text]
 
         return all(metadata)
