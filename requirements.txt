@@ -1,0 +1,7 @@
+torch
+nltk
+tqdm
+colorama
+numpy
+bs4
+requests

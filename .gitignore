@@ -1,0 +1,5 @@
+GNM_model
+train_data.csv.gz
+corpus.txt
+__pycache__
+data/wiki.txt
