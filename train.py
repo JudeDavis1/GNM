@@ -16,7 +16,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 if torch.backends.mps.is_built():
     device = torch.device('mps')
 
-logger.INFO(f'Using {device} backend...')
+logger.INFO(f'Using {str(device).upper()} backend...')
 
 def train():
     logger.INFO('Preparing data...')
@@ -34,7 +34,7 @@ def train():
     dataset.generate_batches()
     logger.INFO(f'Generated {dataset.n_batches} batches')
 
-    print(dataset.train_data_str)
+    print(dataset.train_data)
 
     corpus = dataset.corpus
     model = GNMModel(corpus).to(device)

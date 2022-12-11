@@ -90,12 +90,14 @@ class BookCorpusDataset(Dataset):
         if train_data_file:
             self.train_data = np.loadtxt(train_data_file)
         else:
-            self.train_data_str = [utils.preprocess_text(word) for word in file_contents.split(' ')]
+            logger.INFO('Preprocessing...')
             self.train_data: np.ndarray = utils.text2idx(
-                self.train_data_str,
+                file_contents,
                 self.corpus,
-                preprocessed=True
+                preprocessed=True,
+                pbar=True
             )
+            logger.INFO('Finished preprocesing')
 
             print(f'Process took: {time.time() - start}')
 
@@ -109,21 +111,17 @@ class BookCorpusDataset(Dataset):
 
         self.prep_data = []
 
-    async def generate_batches(self):
+    def generate_batches(self):
         try:
             assert not self._just_corpus
         except AssertionError:
             raise AssertionError('If you want to run: generate_batches(), you must set (just_corpus = False) in the constructor.')
 
-        self.loop.run_until_complete(self._run_gen_batches())
-
-    async def _run_gen_batches(self):
         beginning = 0
         last_idx = self.chunk_size
 
         for i in range(self.n_batches):
-            sample = await self._get_batch(beginning, last_idx)
-            print(sample)
+            sample = self._get_batch(beginning, last_idx)
             self.prep_data.append(sample)
 
             beginning = last_idx
@@ -132,7 +130,7 @@ class BookCorpusDataset(Dataset):
     def _run_load_corpus(self, just_contents=False):
         return self.loop.run_until_complete(load_corpus('data', just_contents=just_contents))
 
-    async def _get_batch(self, beginning, last_idx):
+    def _get_batch(self, beginning, last_idx):
         starting_phrase = self.train_data[beginning:last_idx]
         target_word = self.train_data[last_idx:last_idx + self.chunk_size]
 

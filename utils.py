@@ -1,16 +1,16 @@
 import string
 import numpy as np
 
+from tqdm import tqdm
 from typing import Union
 from multiprocessing import Pool
 
 '''
 
 Just basic utilities relating to encoding data and
-other lexical analysis/word processing tools.
+other lexical word processing tools.
 
 '''
-
 
 
 def preprocess_text(text: str) -> str:
@@ -25,36 +25,44 @@ def preprocess_text(text: str) -> str:
     new_text = ' '.join([word.strip()
         if ' ' in word and word else word
         for word in new_text.split(' ')
-    ]).rstrip().lstrip()
+    ]).lstrip().rstrip()
 
     return new_text.lower()
 
-def text2idx(text: Union[str, list], corpus: list, preprocessed=False, autoadd=True) -> np.ndarray:
-    words = []  # just to declare (stopping the Unbound error)
+def text2idx(
+    text: Union[str, list],
+    corpus: list,
+    preprocessed: bool=False,
+    autoadd: bool=True,
+    pbar: bool=False
+) -> np.ndarray:
+    words = text
     encoded = []
+    should_preprocess = False
 
     if type(text) == str:
         # split by word
-        words = preprocess_text(text).split(' ')
-    elif type(text) == list:
         if not preprocessed:
-            words = [preprocess_text(chunk) for chunk in text]
+            should_preprocess = True
+            words = words.split(' ')
+    elif type(text) in [list]:
+        if not preprocessed:
+            should_preprocess = True
 
-    for word in words:
-        if not word in corpus:
-            if autoadd:
-                corpus.append(word)
+    iterator = tqdm(words) if pbar else words
+    for word in iterator:
+        if should_preprocess:
+            word = preprocess_text(word)
+
+        if autoadd and word not in corpus:
+            corpus.append(word)
 
         encoded.append(corpus.index(word))
 
     return np.array(encoded, dtype=np.int)
 
 def idx2text(idxs: Union[list, np.ndarray], corpus: list):
-    words = []
-
-    for i in range(len(idxs)):
-        words.append(corpus[idxs])
-
+    words = [corpus[idx].strip() for idx in idxs]
     return ' '.join(words).lstrip().rstrip()
 
 def rm_empty_strings(l: list) -> list:
