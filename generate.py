@@ -6,13 +6,13 @@ import torch
 
 from typing import List
 
-from model import GNMModel
+from model import Runner
 
 
 def main():
     corpus: List[str] = [word.strip('\n') for word in io.open('corpus.txt', encoding='utf-8').readlines()]
 
-    model = GNMModel(corpus).cpu()
+    model = Runner(corpus)
     model.load('GNM_model')
 
     while True:

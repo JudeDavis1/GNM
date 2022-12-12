@@ -61,8 +61,6 @@ class BookCorpusDataset(Dataset):
                  save_train_data=False,
                  train_data_file: Optional[str]=None,
                  corpus_from_file: Optional[str]=None):
-        print('Preparing data...')
-
         try:
             assert bool(train_data_file) == bool(corpus_from_file)
         except AssertionError:

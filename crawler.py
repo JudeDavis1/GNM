@@ -1,5 +1,3 @@
-from typing import Union, List
-
 import io
 import bs4
 import string
@@ -7,6 +5,7 @@ import random
 import requests
 
 from collections import deque
+from typing import Union, List
 
 import logger
 

@@ -1,25 +1,29 @@
 import os
+import sys
 import torch
 import warnings
 
-from model import Trainer
+from model import Runner
 from dataset import BookCorpusDataset
 
 import logger
 
 
+if len(sys.argv) != 2:
+    logger.CRITICAL('Please supply the number of epochs.')
+    exit(1)
+
 warnings.filterwarnings('ignore')
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-if torch.backends.mps.is_built():
-    device = torch.device('mps')
-
-logger.INFO(f'Using {str(device).upper()} backend...')
+CHUNK_SIZE = 1
+EPOCHS = int(sys.argv[1])
 
 def train():
-    logger.INFO('Preparing data...')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if torch.backends.mps.is_built():
+        device = torch.device('mps')
 
-    CHUNK_SIZE = 1
+    logger.INFO(f'Using {str(device).upper()} backend...')
+    logger.INFO('Preparing data...')
     dataset = BookCorpusDataset(
         CHUNK_SIZE,
         corpus_from_file='corpus.txt',
@@ -33,15 +37,16 @@ def train():
     logger.INFO(f'Generated {dataset.n_batches} batches')
 
     corpus = dataset.corpus
-    trainer = Trainer(corpus)
+    trainer = Runner(corpus)
     trainer.set_device(device)
+    trainer.load('GNM_model')
 
     try:
         os.system('clear')
         trainer.fit_dataset(
             dataset,
             lr=0.0009,
-            epochs=2,
+            epochs=EPOCHS,
             chunk_size=CHUNK_SIZE,
             batch_size=256,
             save_checkpoint=True,

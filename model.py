@@ -3,6 +3,7 @@ import numpy as np
 
 from torch import nn
 from tqdm import tqdm
+from typing import Union, List
 from matplotlib import pyplot as plt
 from torch.nn import functional as F
 from torch.utils.data import Dataset
@@ -22,7 +23,7 @@ The Trainer class just has all relevant functions for training the model.
 '''
 
 
-class Trainer():
+class Runner:
 
     '''
     Class:
@@ -47,7 +48,12 @@ class Trainer():
         self.vocab_size = len(corpus)
         self.model = GNMModel(self.vocab_size)
 
-    def generate_tokens(self, x: str, chunk_size=10, training=False):
+    def generate_tokens(
+        self,
+        x: str,
+        chunk_size=10,
+        training=False
+    ) -> Union[torch.Tensor, List[str]]:
 
         '''
         Function:
@@ -69,7 +75,7 @@ class Trainer():
             encoded_samples = torch.tensor(np.array([utils.text2idx(x, self.corpus, autoadd=False)])).long().cpu()
 
         generated_tokens = []
-        states = self.self.model.init_states(len(encoded_samples[0]), device='cpu')
+        states = self.model.init_states(len(encoded_samples[0]), device='cpu')
 
         for i in range(chunk_size):
             output, states = self.model(encoded_samples, states)
@@ -83,13 +89,15 @@ class Trainer():
 
         return torch.tensor(generated_tokens)
 
-    def fit_dataset(self,
-                    dataset: Dataset,
-                    lr: float=0.01,
-                    epochs: int=10,
-                    batch_size: int=8,
-                    chunk_size: int=5,
-                    save_checkpoint: bool=True):
+    def fit_dataset(
+        self,
+        dataset: Dataset,
+        lr: float=0.01,
+        epochs: int=10,
+        batch_size: int=8,
+        chunk_size: int=5,
+        save_checkpoint: bool=True
+    ) -> None:
 
         '''
         Function:
@@ -113,7 +121,7 @@ class Trainer():
                 - How many times the model should train itself on a set of batches
                 (see batch_size).
             batch_size: (default: 8)
-                - How many batches of data the model will look at in 1 epoch.
+                - How many batches of data the model will look at in one go.
                 - Lower batch sizes tends to take slightly longer but MAY lead to better
                 results. Larger batch sizes may be quicker but the model may fail to generalize.
                 IT DEPENDS ON THE TYPE OF PROBLEM.
@@ -125,15 +133,13 @@ class Trainer():
 
         print('Initializing training...')
 
-        ld = DataLoader(dataset, batch_size=batch_size, num_workers=0, pin_memory=True)
         criterion = nn.CrossEntropyLoss()
+        ld = DataLoader(dataset, batch_size=batch_size, num_workers=0, pin_memory=True)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, betas=(0.99, 0.999))
-        loss = 999
 
-        total_steps = len(dataset) // batch_size
-
-        t = tqdm(range(1, epochs + 1))
-        for i in t:
+        batch_steps = len(dataset) // batch_size
+        pbar = tqdm(range(1, epochs + 1))
+        for i in pbar:
             '''
             states (h, c):
             h : hidden state.
@@ -141,7 +147,6 @@ class Trainer():
             '''
 
             (h, c) = self.model.init_states(chunk_size)
-
             for j, (x, y) in enumerate(ld):
                 optimizer.zero_grad()
 
@@ -163,7 +168,8 @@ class Trainer():
                 optimizer.step()
 
                 loss = loss.cpu().detach().numpy()
-                t.set_description(f'Batch: {j + 1}/{total_steps} Loss: {loss:.3f}')
+                pbar.update(round(1/batch_steps, 3))
+                pbar.set_description(f'Batch: {j + 1}/{batch_steps} Loss: {loss:.3f}')
 
             self.epochs = i
             self.losses.append(loss)
@@ -171,7 +177,7 @@ class Trainer():
         if save_checkpoint:
             self.model.cpu()
             self.save(self.name)
-    
+
     def set_device(self, device: torch.device):
         self.model.to(device)
 
@@ -197,18 +203,18 @@ class GNMModel(nn.Module):
     def __init__(self, corpus_length):
         super().__init__()
 
-        self.lstm_size = 128
-        self.n_lstm_layers = 3
+        self.lstm_size = 64
+        self.n_lstm_layers = 9
         self.dim =  int(1.6 * np.sqrt(corpus_length))
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Word index -> Vector space
         self.embedding = nn.Embedding(corpus_length, self.dim)
-        
+
         # Probability multiplies with on a word
         self.attn_head = Attn(self.dim, self.lstm_size)
 
-        # Variant of 
+        # Variant of
         self.lstm = nn.LSTM(
             input_size=self.lstm_size,
             hidden_size=self.lstm_size,
@@ -223,7 +229,7 @@ class GNMModel(nn.Module):
 
         if torch.backends.mps.is_built():
             self.device = torch.device('mps')
-    
+
     def forward(self, x: torch.Tensor, prev_state) -> torch.Tensor:
         # Get the 'word' vectors which are representations of an actual word index.
         embeddings = self.embedding(x.int()).float()
@@ -232,7 +238,7 @@ class GNMModel(nn.Module):
         logits = self.dropout(self.fc(output))
 
         return logits, state
-    
+
     def init_states(self, seq_length, device=None) -> tuple:
         zero_state = torch.zeros(
             self.n_lstm_layers * 2,
@@ -255,9 +261,9 @@ class Attn(nn.Module):
     def __init__(self, n_in, n_out):
         super().__init__()
 
-        self._in  = n_in
-        self._out = n_out
-        self.fc   = nn.Linear(n_in, 1, bias=False)
+        self._in   = n_in
+        self._out  = n_out
+        self.fc    = nn.Linear(n_in, 1, bias=False)
         self.ext1  = nn.Linear(n_in, n_out, bias=False)
 
     def forward(self, embeds: torch.Tensor):
