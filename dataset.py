@@ -94,7 +94,6 @@ class BookCorpusDataset(Dataset):
             self.train_data: np.ndarray = utils.text2idx(
                 file_contents,
                 self.corpus,
-                preprocessed=True,
                 pbar=True
             )
             logger.INFO('Finished preprocesing')

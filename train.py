@@ -1,10 +1,8 @@
 import os
-import sys
 import torch
-import asyncio
 import warnings
 
-from model import GNMModel
+from model import Trainer
 from dataset import BookCorpusDataset
 
 import logger
@@ -24,37 +22,34 @@ def train():
     CHUNK_SIZE = 10
     dataset = BookCorpusDataset(
         CHUNK_SIZE,
-        corpus_from_file=None,
+        corpus_from_file='corpus.txt',
         save_train_data=True,
-        train_data_file=None
+        train_data_file='train_data.csv.gz'
     )
 
-    dataset.n_batches = 10
+    dataset.n_batches = 5000
     logger.INFO('Generating batches...')
     dataset.generate_batches()
     logger.INFO(f'Generated {dataset.n_batches} batches')
 
-    print(dataset.train_data)
-
     corpus = dataset.corpus
-    model = GNMModel(corpus).to(device)
-
-    # model.load('GNM_model')
+    trainer = Trainer(corpus)
+    trainer.set_device(device)
 
     try:
         os.system('clear')
-        model.fit_dataset(
+        trainer.fit_dataset(
             dataset,
             lr=0.0009,
-            epochs=100,
+            epochs=10,
             chunk_size=CHUNK_SIZE,
-            batch_size=64,
+            batch_size=128,
             save_checkpoint=True,
         )
     except KeyboardInterrupt:
-        model.save('GNM_model')
+        trainer.save('GNM_model')
 
-    model.plot_loss()
+    trainer.plot_loss()
 
 
 if __name__ == '__main__':

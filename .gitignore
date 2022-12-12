@@ -1,4 +1,2 @@
-GNM_model
-train_data.csv.gz
-corpus.txt
+GNM_model*
 __pycache__

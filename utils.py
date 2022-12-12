@@ -49,8 +49,9 @@ def text2idx(
         if not preprocessed:
             should_preprocess = True
 
-    iterator = tqdm(words) if pbar else words
-    for word in iterator:
+    i = 0
+    bar = tqdm(words) if pbar else words
+    for word in bar:
         if should_preprocess:
             word = preprocess_text(word)
 
@@ -58,6 +59,11 @@ def text2idx(
             corpus.append(word)
 
         encoded.append(corpus.index(word))
+
+        if i % 1000 == 0:
+            bar.update(1000)
+        
+        i += 1
 
     return np.array(encoded, dtype=np.int)
 

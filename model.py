@@ -1,7 +1,5 @@
-
 import torch
 import numpy as np
-
 
 from torch import nn
 from tqdm import tqdm
@@ -19,14 +17,16 @@ Contains all relevent torch.nn.Modules and the main
 GENOME model (G.N.M. Generative Neural Model). This is a model that
 can generate text based on samples of sentences.
 
+The Trainer class just has all relevant functions for training the model.
+
 '''
 
 
-class GNMModel(nn.Module):
+class Trainer():
 
     '''
     Class:
-        The main predictive model for GNM ("Generative Neural Model" or GENOME).
+        The main predictive trainer for GNM ("Generative Neural Model" or GENOME).
     Args:
         corpus:
             - The set of words that the model can understand.
@@ -38,45 +38,14 @@ class GNMModel(nn.Module):
 
 
     def __init__(self, corpus, name='GNM_model'):
-        super().__init__()
-
         # For plotting the model loss
         self.losses = []
         self.epochs = None
 
+        self.name = name
         self.corpus = corpus
-        self.lstm_size = 128
-        self.n_lstm_layers = 3
-        self.name = name + '.pt'
         self.vocab_size = len(corpus)
-        self.dim =  int(1.6 * np.sqrt(len(corpus)))
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        if torch.backends.mps.is_built():
-            self.device = torch.device('mps')
-
-        self.embedding = nn.Embedding(self.vocab_size, self.dim)
-        self.attn_head = Attn(self.dim, self.lstm_size)
-        self.lstm = nn.LSTM(
-            input_size=self.lstm_size,
-            hidden_size=self.lstm_size,
-            num_layers=self.n_lstm_layers * 2,
-
-            dropout=.6
-        )
-        self.fc = nn.Linear(self.lstm_size, self.vocab_size)
-        self.dropout = nn.Dropout(.4)
-
-
-    def forward(self, x: torch.Tensor, prev_state) -> torch.Tensor:
-        # Get the 'word' vectors which are representations of an actual word index.
-        embeddings = self.embedding(x.int()).float()
-        attn = self.dropout(self.attn_head(embeddings))
-        output, state = self.lstm(attn, prev_state)
-        logits = self.dropout(self.fc(output))
-
-        return logits, state
-
+        self.model = GNMModel(self.vocab_size)
 
     def generate_tokens(self, x: str, chunk_size=10, training=False):
 
@@ -95,15 +64,15 @@ class GNMModel(nn.Module):
         encoded_samples = x
 
         if not training:
-            self.eval()
-            self.cpu()
+            self.model.eval()
+            self.model.cpu()
             encoded_samples = torch.tensor(np.array([utils.text2idx(x, self.corpus, autoadd=False)])).long().cpu()
 
         generated_tokens = []
-        states = self.init_states(len(encoded_samples[0]), device='cpu')
+        states = self.self.model.init_states(len(encoded_samples[0]), device='cpu')
 
         for i in range(chunk_size):
-            output, states = self.forward(encoded_samples, states)
+            output, states = self.model(encoded_samples, states)
             probs = F.softmax(output[0][-1], dim=0).cpu().detach().numpy()
             idx = np.random.choice(len(output[0][-1]), p=probs)
 
@@ -113,7 +82,6 @@ class GNMModel(nn.Module):
             return ' '.join([self.corpus[idx] for idx in generated_tokens]).lstrip().rstrip()
 
         return torch.tensor(generated_tokens)
-
 
     def fit_dataset(self,
                     dataset: Dataset,
@@ -159,7 +127,7 @@ class GNMModel(nn.Module):
 
         ld = DataLoader(dataset, batch_size=batch_size, num_workers=0, pin_memory=True)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr, betas=(0.99, 0.999))
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, betas=(0.99, 0.999))
         loss = 999
 
         total_steps = len(dataset) // batch_size
@@ -172,25 +140,27 @@ class GNMModel(nn.Module):
             c : state at time: t.
             '''
 
-            (h, c) = self.init_states(chunk_size)
+            (h, c) = self.model.init_states(chunk_size)
 
             for j, (x, y) in enumerate(ld):
                 optimizer.zero_grad()
 
-                x = x.float().to(self.device)
-                output, (h, c) = self.forward(x, (h, c))
+                x = x.float().to(self.model.device)
+                output, (h, c) = self.model(x, (h, c))
 
                 h = h.detach()
                 c = c.detach()
 
-                loss = criterion(output.transpose(1, 2), y.float().to(self.device).long()).float()
+                loss = criterion(
+                    output.transpose(1, 2),
+                    y
+                        .float()
+                        .to(self.model.device)
+                        .long()
+                ).float()
 
                 loss.backward()
-
-                # Convert to CPU so that CUDA doesn't run out of memory if using the Adam optimizer.
-                # self.to(torch.device('cpu'), non_blocking=True)
                 optimizer.step()
-                # self.to(self.device, non_blocking=True)
 
                 loss = loss.cpu().detach().numpy()
                 t.set_description(f'Batch: {j + 1}/{total_steps} Loss: {loss:.3f}')
@@ -200,7 +170,9 @@ class GNMModel(nn.Module):
 
         if save_checkpoint:
             self.cpu().save(self.name)
-
+    
+    def set_device(self, device: torch.device):
+        self.model.to(device)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
@@ -215,6 +187,51 @@ class GNMModel(nn.Module):
         plt.show()
 
 
+class GNMModel(nn.Module):
+
+    '''
+        The main parent module
+    '''
+
+    def __init__(self, corpus_length):
+        super().__init__()
+
+        self.lstm_size = 128
+        self.n_lstm_layers = 3
+        self.dim =  int(1.6 * np.sqrt(corpus_length))
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        # Word index -> Vector space
+        self.embedding = nn.Embedding(corpus_length, self.dim)
+        
+        # Probability multiplies with on a word
+        self.attn_head = Attn(self.dim, self.lstm_size)
+
+        # Variant of 
+        self.lstm = nn.LSTM(
+            input_size=self.lstm_size,
+            hidden_size=self.lstm_size,
+            num_layers=self.n_lstm_layers * 2,
+
+            dropout=.6
+        )
+        self.fc = nn.Linear(self.lstm_size, corpus_length)
+
+        # Prevent overfitting
+        self.dropout = nn.Dropout(.4)
+
+        if torch.backends.mps.is_built():
+            self.device = torch.device('mps')
+    
+    def forward(self, x: torch.Tensor, prev_state) -> torch.Tensor:
+        # Get the 'word' vectors which are representations of an actual word index.
+        embeddings = self.embedding(x.int()).float()
+        attn = self.dropout(self.attn_head(embeddings))
+        output, state = self.lstm(attn, prev_state)
+        logits = self.dropout(self.fc(output))
+
+        return logits, state
+    
     def init_states(self, seq_length, device=None) -> tuple:
         zero_state = torch.zeros(
             self.n_lstm_layers * 2,
@@ -224,7 +241,6 @@ class GNMModel(nn.Module):
         )
 
         return (zero_state, zero_state)
-
 
 
 class Attn(nn.Module):
@@ -251,13 +267,4 @@ class Attn(nn.Module):
         ext: torch.Tensor = self.ext1(attn_probs)
 
         return ext
-
-    @torch.no_grad()
-    def _init_weights(self, m):
-        m.weight.fill_(1.0)
-        torch.var(m.weight, False)
-
-
-
-
 
