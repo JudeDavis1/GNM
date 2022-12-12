@@ -19,7 +19,7 @@ logger.INFO(f'Using {str(device).upper()} backend...')
 def train():
     logger.INFO('Preparing data...')
 
-    CHUNK_SIZE = 10
+    CHUNK_SIZE = 1
     dataset = BookCorpusDataset(
         CHUNK_SIZE,
         corpus_from_file='corpus.txt',
@@ -41,9 +41,9 @@ def train():
         trainer.fit_dataset(
             dataset,
             lr=0.0009,
-            epochs=10,
+            epochs=2,
             chunk_size=CHUNK_SIZE,
-            batch_size=128,
+            batch_size=256,
             save_checkpoint=True,
         )
     except KeyboardInterrupt:

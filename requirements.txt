@@ -5,3 +5,4 @@ colorama
 numpy
 bs4
 requests
+matplotlib

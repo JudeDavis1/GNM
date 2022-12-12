@@ -169,17 +169,18 @@ class Trainer():
             self.losses.append(loss)
 
         if save_checkpoint:
-            self.cpu().save(self.name)
+            self.model.cpu()
+            self.save(self.name)
     
     def set_device(self, device: torch.device):
         self.model.to(device)
 
     def save(self, path: str):
-        torch.save(self.state_dict(), path)
+        torch.save(self.model.state_dict(), path)
 
 
     def load(self, path: str):
-        self.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
+        self.model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
 
 
     def plot_loss(self):
