@@ -164,7 +164,8 @@ class GNMModel(nn.Module):
 
         total_steps = len(dataset) // batch_size
 
-        for i in (t := tqdm(range(1, epochs + 1))):
+        t = tqdm(range(1, epochs + 1))
+        for i in t:
             '''
             states (h, c):
             h : hidden state.

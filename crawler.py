@@ -15,7 +15,7 @@ def test():
     crawler = Crawler()
     crawler.crawl(
         'https://en.wikipedia.org/wiki/Hello',
-        max_depth=300
+        max_depth=1000
     )
 
     with io.open('data/wiki.txt', 'w+', encoding='utf-8') as f:
@@ -56,7 +56,7 @@ class Crawler:
         '''
 
         i = 0
-        while len(self.visited_pages) < max_depth:
+        while i < max_depth:
             logger.INFO(f'Visiting - {page}')
             self.visited_pages.add(page)
             # Deque a page from the queue
