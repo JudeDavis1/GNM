@@ -77,7 +77,7 @@ class Runner:
         generated_tokens = []
         states = self.model.init_states(len(encoded_samples[0]), device='cpu')
 
-        for i in range(chunk_size):
+        for _ in range(chunk_size):
             output, states = self.model(encoded_samples, states)
             probs = F.softmax(output[0][-1], dim=0).cpu().detach().numpy()
             idx = np.random.choice(len(output[0][-1]), p=probs)
@@ -138,6 +138,7 @@ class Runner:
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, betas=(0.99, 0.999))
 
         batch_steps = len(dataset) // batch_size
+        total_steps = batch_steps * epochs
         pbar = tqdm(range(1, epochs + 1))
         for i in pbar:
             '''
@@ -168,26 +169,27 @@ class Runner:
                 optimizer.step()
 
                 loss = loss.cpu().detach().numpy()
-                pbar.update(round(1/batch_steps, 3))
+
+                # Shorten step size for tqdm
+                step_size = float(f'{(1/total_steps):.3f}')
+                pbar.update(step_size)
                 pbar.set_description(f'Batch: {j + 1}/{batch_steps} Loss: {loss:.3f}')
 
             self.epochs = i
             self.losses.append(loss)
 
         if save_checkpoint:
-            self.model.cpu()
+            self.set_device('cpu')
             self.save(self.name)
 
     def set_device(self, device: torch.device):
-        self.model.to(device)
+        self.model.set_device(device)
 
     def save(self, path: str):
         torch.save(self.model.state_dict(), path)
 
-
     def load(self, path: str):
         self.model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
-
 
     def plot_loss(self):
         plt.plot(range(1, self.epochs + 1), self.losses)
@@ -204,7 +206,7 @@ class GNMModel(nn.Module):
         super().__init__()
 
         self.lstm_size = 64
-        self.n_lstm_layers = 9
+        self.n_lstm_layers = 100
         self.dim =  int(1.6 * np.sqrt(corpus_length))
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -248,6 +250,10 @@ class GNMModel(nn.Module):
         )
 
         return (zero_state, zero_state)
+    
+    def set_device(self, device: torch.device):
+        self.to(device)
+        self.device = device
 
 
 class Attn(nn.Module):

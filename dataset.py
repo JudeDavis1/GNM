@@ -45,7 +45,7 @@ class BookCorpusDataset(Dataset):
             - You can't run generate_batches() if this is set to True.
         save_corpus:
             - Whether to save the corpus in a file or not.
-        save_train_data:
+        cache_train_data:
             - Whether or not to save the training data instead of processing it every time
             at runtime.
         train_data_file:
@@ -58,7 +58,7 @@ class BookCorpusDataset(Dataset):
                  chunk_size=3,
                  just_corpus=False,
                  save_corpus=True,
-                 save_train_data=False,
+                 cache_train_data=False,
                  train_data_file: Optional[str]=None,
                  corpus_from_file: Optional[str]=None):
         try:
@@ -103,7 +103,7 @@ class BookCorpusDataset(Dataset):
                     for word in self.corpus:
                         f.write(word + '\n')
 
-            if save_train_data:
+            if cache_train_data:
                 np.savetxt('train_data.csv.gz', self.train_data)
 
         self.prep_data = []

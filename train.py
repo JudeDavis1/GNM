@@ -27,7 +27,7 @@ def train():
     dataset = BookCorpusDataset(
         CHUNK_SIZE,
         corpus_from_file='corpus.txt',
-        save_train_data=True,
+        cache_train_data=True,
         train_data_file='train_data.csv.gz'
     )
 
@@ -48,7 +48,7 @@ def train():
             lr=0.0009,
             epochs=EPOCHS,
             chunk_size=CHUNK_SIZE,
-            batch_size=256,
+            batch_size=128,
             save_checkpoint=True,
         )
     except KeyboardInterrupt:

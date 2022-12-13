@@ -1,8 +1,6 @@
+import io
 import warnings
 warnings.filterwarnings('ignore')
-
-import io
-import torch
 
 from typing import List
 
