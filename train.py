@@ -16,6 +16,7 @@ if len(sys.argv) != 2:
 warnings.filterwarnings('ignore')
 CHUNK_SIZE = 1
 EPOCHS = int(sys.argv[1])
+FROM_PRETRAINED = False
 
 def train():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -39,7 +40,8 @@ def train():
     corpus = dataset.corpus
     trainer = Runner(corpus)
     trainer.set_device(device)
-    trainer.load('GNM_model')
+    if FROM_PRETRAINED:
+        trainer.load('GNM_model')
 
     try:
         os.system('clear')

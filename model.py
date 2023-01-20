@@ -235,9 +235,9 @@ class GNMModel(nn.Module):
     def forward(self, x: torch.Tensor, prev_state) -> torch.Tensor:
         # Get the 'word' vectors which are representations of an actual word index.
         embeddings = self.embedding(x.int()).float()
-        attn = self.dropout(self.attn_head(embeddings))
+        attn = self.attn_head(embeddings)
         output, state = self.lstm(attn, prev_state)
-        logits = self.dropout(self.fc(output))
+        logits = self.fc(output)
 
         return logits, state
 
@@ -273,8 +273,7 @@ class Attn(nn.Module):
         self.ext1  = nn.Linear(n_in, n_out, bias=False)
 
     def forward(self, embeds: torch.Tensor):
-        weights = self.fc(embeds)
-        weights_norm = F.softmax(weights).float()
+        weights_norm = F.softmax(embeds).float()
 
         attn_probs = torch.multiply(weights_norm, embeds)
         ext: torch.Tensor = self.ext1(attn_probs)
